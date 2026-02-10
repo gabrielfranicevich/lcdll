@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply m-0 p-0 font-sans text-primary bg-void min-h-screen antialiased;
+    background-image: radial-gradient(circle at center, #111 0%, #050505 100%);
+  }
+
+  #root {
+    @apply w-full min-h-screen flex flex-col;
+  }
+}
+
+/* Custom Scrollbar for the dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-surface;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-surfaceHighlight rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-secondary;
+}
+
+/* Utility classes for the new theme */
+.text-stroke {
+  -webkit-text-stroke: 1px black;
+}
