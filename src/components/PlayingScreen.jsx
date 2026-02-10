@@ -5,7 +5,7 @@ import VotingView from './playing/VotingView';
 import ReadingView from './playing/ReadingView';
 import ResultsView from './playing/ResultsView';
 
-const OnlinePlayingScreen = ({ roomData, playerId, submitCards, submitVote, leaveRoom, isHost, resetGame, myHand, mySubmissionId, startVoting }) => {
+const OnlinePlayingScreen = ({ roomData, playerId, submitCards, submitVote, leaveRoom, isHost, resetGame, myHand, mySubmissionId, startVoting, updateReadingIndex }) => {
   const [hasSubmittedCards, setHasSubmittedCards] = useState(false);
 
   const gameData = roomData.gameData || {};
@@ -59,6 +59,7 @@ const OnlinePlayingScreen = ({ roomData, playerId, submitCards, submitVote, leav
             gameData={gameData}
             myId={playerId}
             startVoting={startVoting}
+            updateReadingIndex={updateReadingIndex}
             isHost={isHost}
           />
         )}

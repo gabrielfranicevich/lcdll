@@ -2,8 +2,22 @@ import { useState, useEffect } from 'react';
 import BlackCardDisplay from './BlackCardDisplay';
 import { ArrowLeft, ArrowRight } from '../Icons';
 
-const ReadingView = ({ gameData, myId, startVoting, isHost }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+const ReadingView = ({ gameData, myId, startVoting, updateReadingIndex, isHost }) => {
+  // Server state
+  const serverIndex = gameData.currentReadingIndex || 0;
+
+  // Local state for smooth UI and individual browsing
+  const [currentIndex, setCurrentIndex] = useState(serverIndex);
+
+  // Touch/swipe state
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  // Sync local state when server updates (Czar moves)
+  useEffect(() => {
+    setCurrentIndex(serverIndex);
+  }, [serverIndex]);
+
   const submissions = gameData.table || [];
   const totalSubmissions = submissions.length;
 
@@ -12,17 +26,53 @@ const ReadingView = ({ gameData, myId, startVoting, isHost }) => {
 
   const currentSubmission = submissions[currentIndex];
 
+  // Check if I am the Czar
+  const isCzar = gameData.czarId === myId;
+  const canStartVoting = isCzar || isHost; // Allow Host to rescue if Czar is stuck
+
   const handleNext = () => {
-    setCurrentIndex((prev) => (prev + 1) % totalSubmissions);
+    const newIndex = (currentIndex + 1) % totalSubmissions;
+    setCurrentIndex(newIndex);
+    // If I am Czar, sync everyone
+    if (isCzar) {
+      updateReadingIndex(newIndex);
+    }
   };
 
   const handlePrev = () => {
-    setCurrentIndex((prev) => (prev - 1 + totalSubmissions) % totalSubmissions);
+    const newIndex = (currentIndex - 1 + totalSubmissions) % totalSubmissions;
+    setCurrentIndex(newIndex);
+    // If I am Czar, sync everyone
+    if (isCzar) {
+      updateReadingIndex(newIndex);
+    }
   };
 
-  // Check if I am the Czar
-  const isCzar = gameData.czarId === myId;
-  const canStartVoting = isCzar || isHost;
+  // Touch handlers for swipe gestures
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      handleNext();
+    } else if (isRightSwipe) {
+      handlePrev();
+    }
+  };
 
   return (
     <div className="flex flex-col h-full items-center">
@@ -34,7 +84,7 @@ const ReadingView = ({ gameData, myId, startVoting, isHost }) => {
         <p className="text-secondary text-sm font-mono">
           {isCzar
             ? 'Leé la combinación en voz alta.'
-            : 'El Czar está leyendo las combinaciones.'}
+            : 'El César está leyendo las combinaciones.'}
         </p>
       </div>
 
@@ -44,29 +94,23 @@ const ReadingView = ({ gameData, myId, startVoting, isHost }) => {
         <div className="w-full max-w-sm md:w-1/2 flex justify-center md:justify-end">
           <BlackCardDisplay
             text={gameData.currentBlackCard}
-            filledBlanks={[]}
+            filledBlanks={currentSubmission.cards}
           />
         </div>
 
         {/* White Card (Rotating) */}
         <div className="w-full max-w-sm md:w-1/2 flex flex-col items-center md:items-start relative min-h-[300px]">
 
-          {/* Navigation Controls (Only for Czar usually, but maybe everyone wants to see?) 
-              Request said: "he has the role or reading... then they discuss"
-              Implies only he needs to control. 
-              But for "in person" usually everyone looks at the screen?
-              If it's on a TV, everyone sees.
-              If it's on phones, maybe only Czar sees the cards to read?
-              "can see the black card with the preview, rotatingly"
-              Let's make it so ONLY Czar sees the white cards? 
-              Or everyone sees them but Czar controls?
-              Current implementation: Everyone sees their own local rotation.
-              This allows everyone to read at their own pace if they want, 
-              OR they can just look at the Czar's screen if casted.
-              Let's keep it local control for now, but highlight Czar status.
-          */}
-
-          <div className="relative group perspective-1000 w-full">
+          <div
+            className="relative group perspective-1000 w-full"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            onMouseDown={onMouseDown}
+            onMouseMove={onMouseMove}
+            onMouseUp={onMouseUp}
+            onMouseLeave={onMouseLeave}
+          >
             <div className="bg-white text-black rounded-lg p-6 shadow-brutal border-2 border-white/20 min-h-[250px] flex flex-col relative transition-all duration-300 transform">
 
               <div className="flex-1 font-bold text-xl md:text-2xl leading-normal font-helvetica text-left">
@@ -85,7 +129,7 @@ const ReadingView = ({ gameData, myId, startVoting, isHost }) => {
               </div>
             </div>
 
-            {/* Navigation Buttons (Overlay) */}
+            {/* Navigation Buttons (Overlay) - For Everyone */}
             <div className="absolute top-1/2 -left-12 -translate-y-1/2 hidden md:block">
               <button onClick={handlePrev} className="p-2 text-white/50 hover:text-accent-toxic transition-colors">
                 <ArrowLeft size={32} />
@@ -98,7 +142,7 @@ const ReadingView = ({ gameData, myId, startVoting, isHost }) => {
             </div>
           </div>
 
-          {/* Mobile Navigation */}
+          {/* Mobile Navigation - For Everyone */}
           <div className="flex items-center justify-between w-full mt-4 md:hidden px-4">
             <button onClick={handlePrev} className="p-4 bg-surfaceHighlight rounded-full text-white active:scale-90 transition-transform">
               <ArrowLeft size={24} />

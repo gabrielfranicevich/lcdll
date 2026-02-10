@@ -105,6 +105,8 @@ function App() {
             leaveRoom={onlineGame.leaveRoom}
             myHand={onlineGame.myHand}
             mySubmissionId={onlineGame.mySubmissionId}
+            startVoting={onlineGame.startVoting}
+            updateReadingIndex={onlineGame.updateReadingIndex}
           />
         )}
       </div>

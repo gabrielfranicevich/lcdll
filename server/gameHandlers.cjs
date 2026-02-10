@@ -106,7 +106,8 @@ function setupGameHandlers(socket, roomManager) {
         table: [], // { submissionId, playerId, cards: [text] }
         votes: {}, // playerId -> submissionId
         roundWinnerIds: [],
-        czarIndex: 0 // Track who is the Czar (Reader)
+        czarIndex: 0, // Track who is the Czar (Reader)
+        currentReadingIndex: 0 // Track which card the Czar is viewing
       };
 
       // Initialize Scores and Hands
@@ -233,17 +234,53 @@ function setupGameHandlers(socket, roomManager) {
   });
 
   socket.on('startVoting', ({ roomId }) => {
+    console.log('[startVoting] Event received for room:', roomId);
     const room = roomManager.getRoom(roomId);
-    if (room && room.gameData && room.gameData.state === 'reading') {
-      // Allow Czar or Host to start voting
-      // ideally check if socket.id is Czar, but for flexibility Host is ok too
-      // Let's implement strict Czar check if possible, or lax. 
-      // Lax for now to avoid stuck games.
-
-      console.log(`Starting voting phase for room ${roomId}`);
-      room.gameData.state = 'voting';
-      roomManager.emitToRoom(roomId, 'gameDataUpdated', getPublicGameData(room));
+    if (!room) {
+      console.error('[startVoting] Room not found:', roomId);
+      return;
     }
+    if (!room.gameData) {
+      console.error('[startVoting] No gameData in room:', roomId);
+      return;
+    }
+    if (room.gameData.state !== 'reading') {
+      console.error('[startVoting] Room not in reading state. Current state:', room.gameData.state);
+      return;
+    }
+
+    console.log(`[startVoting] Transitioning room ${roomId} from reading to voting`);
+    room.gameData.state = 'voting';
+    roomManager.emitToRoom(roomId, 'gameDataUpdated', getPublicGameData(room));
+  });
+
+  socket.on('updateReadingIndex', ({ roomId, index }) => {
+    console.log('[updateReadingIndex] Event received for room:', roomId, 'index:', index);
+    const room = roomManager.getRoom(roomId);
+    if (!room) {
+      console.error('[updateReadingIndex] Room not found:', roomId);
+      return;
+    }
+    if (!room.gameData) {
+      console.error('[updateReadingIndex] No gameData in room:', roomId);
+      return;
+    }
+    if (room.gameData.state !== 'reading') {
+      console.error('[updateReadingIndex] Room not in reading state. Current state:', room.gameData.state);
+      return;
+    }
+
+    // Verify it's the Czar making the request
+    const player = room.players.find(p => p.id === socket.id);
+    const czarPlayerId = room.players[room.gameData.czarIndex]?.playerId;
+    if (player?.playerId !== czarPlayerId) {
+      console.error('[updateReadingIndex] Player is not the Czar:', player?.playerId, 'vs', czarPlayerId);
+      return;
+    }
+
+    console.log(`[updateReadingIndex] Setting reading index to ${index} for room ${roomId}`);
+    room.gameData.currentReadingIndex = index;
+    roomManager.emitToRoom(roomId, 'gameDataUpdated', getPublicGameData(room));
   });
 
   socket.on('nextRound', ({ roomId }) => {
@@ -413,6 +450,7 @@ function getPublicGameData(room) {
       cards: entry.cards
       // No playerId
     }));
+    sendData.currentReadingIndex = room.gameData.currentReadingIndex || 0;
   } else if (room.gameData.state === 'voting') {
     // Show cards, Hide playerIds (Anonymity)
     sendData.table = room.gameData.table.map(entry => ({

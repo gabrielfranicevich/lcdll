@@ -242,7 +242,19 @@ export const useOnlineGame = (setScreen, mySessionId, localIp, playerName) => {
 
   const startVoting = useCallback(() => {
     if (socket && roomId) {
+      console.log('[startVoting] Emitting startVoting event for room:', roomId);
       socket.emit('startVoting', { roomId });
+    } else {
+      console.error('[startVoting] Missing socket or roomId:', { socket: !!socket, roomId });
+    }
+  }, [socket, roomId]);
+
+  const updateReadingIndex = useCallback((index) => {
+    if (socket && roomId) {
+      console.log('[updateReadingIndex] Emitting updateReadingIndex event for room:', roomId, 'index:', index);
+      socket.emit('updateReadingIndex', { roomId, index });
+    } else {
+      console.error('[updateReadingIndex] Missing socket or roomId:', { socket: !!socket, roomId });
     }
   }, [socket, roomId]);
 
@@ -273,6 +285,7 @@ export const useOnlineGame = (setScreen, mySessionId, localIp, playerName) => {
     submitCards,
     submitCards,
     startVoting,
+    updateReadingIndex,
     myHand,
     mySubmissionId: mySubmissionId || roomData?.gameData?.table?.find(s => s.playerId === mySessionId)?.submissionId // Fallback to finding it in table if we rejoined and have raw data
   };
