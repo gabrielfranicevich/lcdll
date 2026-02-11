@@ -74,6 +74,47 @@ const ReadingView = ({ gameData, myId, startVoting, updateReadingIndex, isHost }
     }
   };
 
+  // Mouse handlers for swipe gestures (desktop)
+  const [mouseDownX, setMouseDownX] = useState(null);
+  const [mouseUpX, setMouseUpX] = useState(null);
+
+  const onMouseDown = (e) => {
+    setMouseUpX(null);
+    setMouseDownX(e.clientX);
+  };
+
+  const onMouseMove = (e) => {
+    if (mouseDownX) {
+      setMouseUpX(e.clientX);
+    }
+  };
+
+  const onMouseUp = () => {
+    if (!mouseDownX || !mouseUpX) {
+      setMouseDownX(null); // Reset start if no move happened
+      return;
+    }
+
+    const distance = mouseDownX - mouseUpX;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      handleNext();
+    } else if (isRightSwipe) {
+      handlePrev();
+    }
+
+    setMouseDownX(null);
+    setMouseUpX(null);
+  };
+
+  const onMouseLeave = () => {
+    if (mouseDownX) {
+      onMouseUp();
+    }
+  };
+
   return (
     <div className="flex flex-col h-full items-center">
       {/* Header Status */}
