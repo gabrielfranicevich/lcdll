@@ -5,7 +5,7 @@ import VotingView from './playing/VotingView';
 import ReadingView from './playing/ReadingView';
 import ResultsView from './playing/ResultsView';
 
-const OnlinePlayingScreen = ({ roomData, playerId, submitCards, submitVote, leaveRoom, isHost, resetGame, myHand, mySubmissionId, startVoting, updateReadingIndex }) => {
+const OnlinePlayingScreen = ({ roomData, playerId, submitCards, submitVote, leaveRoom, isHost, nextRound, myHand, mySubmissionId, startVoting, updateReadingIndex }) => {
   const [hasSubmittedCards, setHasSubmittedCards] = useState(false);
 
   const gameData = roomData.gameData || {};
@@ -34,7 +34,7 @@ const OnlinePlayingScreen = ({ roomData, playerId, submitCards, submitVote, leav
 
   const handleNextRound = () => {
     if (isHost) {
-      resetGame(); // This triggers 'nextRound' on server which starts a new round
+      nextRound(); // This triggers 'nextRound' on server which starts a new round while preserving scores
     }
   };
 

@@ -98,7 +98,9 @@ function setupGameHandlers(socket, roomManager) {
         state: 'playing', // playing -> voting -> results
         decks: {
           negras: gameNegras,
-          blancas: gameBlancas
+          blancas: gameBlancas,
+          discardPile: [], // Discard pile for played white cards
+          discardPileNegras: [] // Discard pile for used black cards
         },
         hands: {}, // playerId -> [cards]
         scores: {}, // playerId -> number
@@ -309,8 +311,13 @@ function startNewRound(room) {
   room.gameData.state = 'playing';
   room.gameData.table = [];
   room.gameData.votes = {};
-  room.gameData.votes = {};
   room.gameData.roundWinnerIds = [];
+
+  // Add previous black card to discard pile (if exists)
+  if (room.gameData.currentBlackCard) {
+    room.gameData.decks.discardPileNegras.push(room.gameData.currentBlackCard);
+    console.log(`Added black card to discard pile. Black discard pile now has ${room.gameData.decks.discardPileNegras.length} cards.`);
+  }
 
   // Rotate Czar
   const activePlayers = room.players.filter(p => p.connected !== false);
@@ -320,29 +327,39 @@ function startNewRound(room) {
 
   // Pick Black Card
   if (room.gameData.decks.negras.length === 0) {
-    console.log('Black deck empty, recycling...');
-    const selectedThemes = room.settings.selectedThemes || ['basico'];
-    let newNegras = [];
+    console.log('Black deck empty, checking discard pile...');
 
-    selectedThemes.forEach(themeName => {
-      if (cartasData.THEMES[themeName]) {
-        if (cartasData.THEMES[themeName].NEGRAS) newNegras.push(...cartasData.THEMES[themeName].NEGRAS);
-      } else {
-        // Check contributed
-        if (themeName.startsWith('contributed:')) {
-          const parts = themeName.split(':');
-          const contrib = room.contributedThemes.find(t => t.name === parts[1] && t.contributorId === parts[2]);
-          if (contrib && contrib.black) newNegras.push(...contrib.black);
+    // First try to use the discard pile
+    if (room.gameData.decks.discardPileNegras.length > 0) {
+      console.log(`Recycling ${room.gameData.decks.discardPileNegras.length} black cards from discard pile`);
+      room.gameData.decks.negras = shuffleArray([...room.gameData.decks.discardPileNegras]);
+      room.gameData.decks.discardPileNegras = [];
+    } else {
+      // If discard pile is also empty, reload from themes
+      console.log('Black discard pile also empty, reloading from themes...');
+      const selectedThemes = room.settings.selectedThemes || ['basico'];
+      let newNegras = [];
+
+      selectedThemes.forEach(themeName => {
+        if (cartasData.THEMES[themeName]) {
+          if (cartasData.THEMES[themeName].NEGRAS) newNegras.push(...cartasData.THEMES[themeName].NEGRAS);
         } else {
-          const contrib = room.contributedThemes.find(t => t.name === themeName);
-          if (contrib && contrib.black) newNegras.push(...contrib.black);
+          // Check contributed
+          if (themeName.startsWith('contributed:')) {
+            const parts = themeName.split(':');
+            const contrib = room.contributedThemes.find(t => t.name === parts[1] && t.contributorId === parts[2]);
+            if (contrib && contrib.black) newNegras.push(...contrib.black);
+          } else {
+            const contrib = room.contributedThemes.find(t => t.name === themeName);
+            if (contrib && contrib.black) newNegras.push(...contrib.black);
+          }
         }
-      }
-    });
+      });
 
-    // Deduplicate and Shuffle
-    newNegras = shuffleArray([...new Set(newNegras)]);
-    room.gameData.decks.negras = newNegras;
+      // Deduplicate and Shuffle
+      newNegras = shuffleArray([...new Set(newNegras)]);
+      room.gameData.decks.negras = newNegras;
+    }
   }
 
   room.gameData.currentBlackCard = room.gameData.decks.negras.pop() || "Se acabaron las cartas negras.";
@@ -351,38 +368,29 @@ function startNewRound(room) {
   activePlayers.forEach(p => {
     const hand = room.gameData.hands[p.playerId];
     while (hand.length < 10) {
+      // First check if main deck has cards
       if (room.gameData.decks.blancas.length === 0) {
-        console.log('White deck empty, recycling...');
-        const selectedThemes = room.settings.selectedThemes || ['basico'];
-        let newBlancas = [];
+        console.log('White deck empty, checking discard pile...');
 
-        selectedThemes.forEach(themeName => {
-          if (cartasData.THEMES[themeName]) {
-            if (cartasData.THEMES[themeName].BLANCAS) newBlancas.push(...cartasData.THEMES[themeName].BLANCAS);
-          } else {
-            // Check contributed
-            if (themeName.startsWith('contributed:')) {
-              const parts = themeName.split(':');
-              const contrib = room.contributedThemes.find(t => t.name === parts[1] && t.contributorId === parts[2]);
-              if (contrib && contrib.white) newBlancas.push(...contrib.white);
-            } else {
-              const contrib = room.contributedThemes.find(t => t.name === themeName);
-              if (contrib && contrib.white) newBlancas.push(...contrib.white);
-            }
+        // Try to use the discard pile
+        if (room.gameData.decks.discardPile.length > 0) {
+          console.log(`Recycling ${room.gameData.decks.discardPile.length} white cards from discard pile`);
+          // Filter out cards currently in anyone's hand to avoid duplicates
+          const allHands = Object.values(room.gameData.hands).flat();
+          let recyclableCards = room.gameData.decks.discardPile.filter(c => !allHands.includes(c));
+
+          // Shuffle and set as new deck
+          room.gameData.decks.blancas = shuffleArray(recyclableCards);
+          room.gameData.decks.discardPile = [];
+
+          if (room.gameData.decks.blancas.length === 0) {
+            console.log('All discard pile cards are in hands, cannot recycle.');
+            break;
           }
-        });
-
-        // Deduplicate
-        newBlancas = [...new Set(newBlancas)];
-
-        // Filter out cards currently in anyone's hand to avoid duplicates in play
-        const allHands = Object.values(room.gameData.hands).flat();
-        newBlancas = newBlancas.filter(c => !allHands.includes(c));
-
-        // Shuffle
-        room.gameData.decks.blancas = shuffleArray(newBlancas);
-
-        if (room.gameData.decks.blancas.length === 0) break; // Still empty? Stop.
+        } else {
+          console.log('White discard pile also empty, cannot replenish.');
+          break; // Both deck and discard pile are empty
+        }
       }
 
       hand.push(room.gameData.decks.blancas.pop());
@@ -392,6 +400,12 @@ function startNewRound(room) {
 
 function processRoundResults(room) {
   room.gameData.state = 'results';
+
+  // Add all played cards to discard pile
+  room.gameData.table.forEach(submission => {
+    room.gameData.decks.discardPile.push(...submission.cards);
+  });
+  console.log(`Added ${room.gameData.table.reduce((sum, s) => sum + s.cards.length, 0)} cards to discard pile. Discard pile now has ${room.gameData.decks.discardPile.length} cards.`);
 
   // Tally votes
   const counts = {}; // submissionId -> count

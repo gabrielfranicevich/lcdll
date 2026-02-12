@@ -110,9 +110,18 @@ export const useOnlineGame = (setScreen, mySessionId, localIp, playerName) => {
       handleGameStarted(data);
     });
     socket.on('gameDataUpdated', (data) => {
-      // Removed reset logic: it was using stale roomData closure and resetting ID prematurely.
-      // We only reset on new game or explicit reset.
-      handleGameDataUpdated(data);
+      // Reset submission ID when a new round starts (state transitions to 'playing')
+      setRoomData(prevRoom => {
+        const prevState = prevRoom?.gameData?.state;
+        const newState = data?.state;
+
+        // If transitioning to 'playing', it's a new round - reset submission ID
+        if (newState === 'playing' && prevState !== 'playing') {
+          setMySubmissionId(null);
+        }
+
+        return prevRoom ? { ...prevRoom, gameData: data } : null;
+      });
     });
     socket.on('gameReset', (data) => {
       setMySubmissionId(null);
@@ -258,6 +267,15 @@ export const useOnlineGame = (setScreen, mySessionId, localIp, playerName) => {
     }
   }, [socket, roomId]);
 
+  const nextRound = useCallback(() => {
+    if (socket && roomId) {
+      console.log('[nextRound] Emitting nextRound event for room:', roomId);
+      socket.emit('nextRound', { roomId });
+    } else {
+      console.error('[nextRound] Missing socket or roomId:', { socket: !!socket, roomId });
+    }
+  }, [socket, roomId]);
+
   return {
     socket,
     onlineGames,
@@ -286,6 +304,7 @@ export const useOnlineGame = (setScreen, mySessionId, localIp, playerName) => {
     submitCards,
     startVoting,
     updateReadingIndex,
+    nextRound,
     myHand,
     mySubmissionId: mySubmissionId || roomData?.gameData?.table?.find(s => s.playerId === mySessionId)?.submissionId // Fallback to finding it in table if we rejoined and have raw data
   };

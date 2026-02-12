@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import BlackCardDisplay from './BlackCardDisplay';
 import { ArrowLeft, ArrowRight } from '../Icons';
 
-const ReadingView = ({ gameData, myId, startVoting, updateReadingIndex, isHost }) => {
+const ReadingView = ({ gameData, myId, startVoting, updateReadingIndex }) => {
   // Server state
   const serverIndex = gameData.currentReadingIndex || 0;
 
@@ -28,7 +28,7 @@ const ReadingView = ({ gameData, myId, startVoting, updateReadingIndex, isHost }
 
   // Check if I am the Czar
   const isCzar = gameData.czarId === myId;
-  const canStartVoting = isCzar || isHost; // Allow Host to rescue if Czar is stuck
+  const canStartVoting = isCzar;
 
   const handleNext = () => {
     const newIndex = (currentIndex + 1) % totalSubmissions;

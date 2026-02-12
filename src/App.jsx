@@ -99,7 +99,7 @@ function App() {
             playerName={playerName}
             playerId={mySessionId}
             isHost={onlineGame.isHost}
-            resetGame={onlineGame.resetOnlineGame}
+            nextRound={onlineGame.nextRound}
             submitCards={onlineGame.submitCards}
             submitVote={onlineGame.submitVote}
             leaveRoom={onlineGame.leaveRoom}
