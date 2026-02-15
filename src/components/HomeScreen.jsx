@@ -6,7 +6,7 @@ const HomeScreen = ({ setScreen }) => (
     <div className="mb-16 text-center">
       <div className="mb-6 relative group">
         <div className="absolute inset-0 bg-accent-toxic/20 blur-xl rounded-full group-hover:bg-accent-toxic/40 transition-all duration-500"></div>
-        <img src={smirkcat} alt="Smirking cat" className="w-64 h-auto mx-auto relative z-10 drop-shadow-2xl grayscale contrast-125 brightness-110" />
+        <img src={smirkcat} alt="Smirking cat" className="w-64 h-auto mx-auto relative z-10 drop-shadow-2xl grayscale-[70%] contrast-125 brightness-110" />
       </div>
       <h1 className="text-8xl font-black text-white tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">
         LCDLL
